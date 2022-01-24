@@ -2,6 +2,6 @@
 {
     enum Commands
     {
-       NULL, POMOC, ZALOGUJ, ZAREJESTRUJ
+       NULL, POMOC, ZALOGUJ, ZAREJESTRUJ, WYLOGUJ
     }
 }
