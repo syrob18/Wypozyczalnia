@@ -12,6 +12,8 @@ namespace Wypozyczalnia
     {
         static string screensDetailsURL = "ScreensPropeties.json";
         static Account loggedAccount = null;
+        static List<Vehicle> data = null;
+
         public static void PrintScreen()
         {
             string name ="Nieznajomy";
@@ -27,6 +29,11 @@ namespace Wypozyczalnia
             string command = Console.ReadLine();
 
             CommandPicker(command);
+        }
+
+        static public void LoadList(List<Vehicle> listVehicle)
+        {
+            data = listVehicle;
         }
 
         static void CommandPicker(string commandProvided)
@@ -57,6 +64,12 @@ namespace Wypozyczalnia
                         break;
                     case Commands.WYLOGUJ:
                         SignOut();
+                        break;
+                    case Commands.DODAJPOJAZD:
+                        AddVehicle();
+                        break;
+                    case Commands.POKAZPOJAZDY:
+                        ShowStatus();
                         break;
                 }
             }
@@ -114,6 +127,7 @@ namespace Wypozyczalnia
                     if(account.password == password)
                     {
                         loggedAccount = account;
+                        Console.Clear();
                         Console.WriteLine("Zalogowano");
                         return;
                     }
@@ -179,6 +193,64 @@ namespace Wypozyczalnia
             
             Console.WriteLine($"Zegnaj {loggedAccount.name}");
             loggedAccount = null;
+            
         }
+
+        static void AddVehicle()
+        {
+            if (loggedAccount != null && loggedAccount.type == AccountTypes.Admin)
+            {
+                Console.WriteLine("Podaj nazwe pojazdu");
+                string name = Console.ReadLine();
+                Console.WriteLine("Dostepne komendy typy pojazdow: ");
+                foreach (VehicleType types in Enum.GetValues(typeof(VehicleType)))
+                {
+                    if (types != VehicleType.NULL)
+                    {
+                        Console.Write(types.ToString() + ", ");
+                        Console.WriteLine("");
+                    }
+                }
+                Console.WriteLine("Podaj typ pojazdu:");
+                string type = Console.ReadLine();
+
+                bool typeExist = false;
+                VehicleType typeToUse = VehicleType.NULL;
+                foreach (VehicleType types in Enum.GetValues(typeof(VehicleType)))
+                {
+                    if (type.ToString().ToUpper() == types.ToString().ToUpper())
+                    {
+                        typeExist = true;
+                        typeToUse = types;
+                        break;
+                    }
+                }
+                if (typeExist)
+                {
+                    data.Add(new Vehicle(name, typeToUse));
+                }
+                else
+                {
+                    Console.WriteLine("Brak takie typu, sprobuj dodac pojazd ponownie");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto administratora");
+            }
+        }
+
+        static void ShowStatus()
+        {
+            if (data != null)
+            {
+                foreach(Vehicle veh in data)
+                {
+                    Console.WriteLine("------------------------------");
+                    Console.WriteLine(veh);
+                    
+                }
+            }
+        } 
     }
 }
