@@ -18,6 +18,10 @@ namespace Wypozyczalnia
         public string password { get; set; }
         public  AccountTypes type { get; set; }
 
+        public override string ToString()
+        {
+            return $"{name} | {type}";
+        }
 
     }
 }

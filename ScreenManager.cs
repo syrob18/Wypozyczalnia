@@ -13,6 +13,7 @@ namespace Wypozyczalnia
         static string screensDetailsURL = "ScreensPropeties.json";
         static Account loggedAccount = null;
         static List<Vehicle> data = null;
+        static ArrayList dataAccount = null;
 
         public static void PrintScreen()
         {
@@ -71,6 +72,9 @@ namespace Wypozyczalnia
                     case Commands.POKAZPOJAZDY:
                         ShowStatus();
                         break;
+                    case Commands.POKAZKONTA:
+                        ShowAccounts();
+                        break;
                 }
             }
             else
@@ -116,11 +120,12 @@ namespace Wypozyczalnia
                
                 Account account = new Account(element.GetProperty("name").GetString(), element.GetProperty("password").GetString(), (AccountTypes) element.GetProperty("type").GetInt32());
                 listAccounts.Add(account);
+                
             }
+            dataAccount = listAccounts;
 
 
-
-            foreach(Account account in listAccounts)
+            foreach (Account account in listAccounts)
             {
                 if(account.name == name)
                 {
@@ -190,7 +195,7 @@ namespace Wypozyczalnia
 
         static void SignOut()
         {
-            
+            Console.Clear();
             Console.WriteLine($"Zegnaj {loggedAccount.name}");
             loggedAccount = null;
             
@@ -251,6 +256,26 @@ namespace Wypozyczalnia
                     
                 }
             }
-        } 
+        }
+
+        static void ShowAccounts()
+        {
+            if (loggedAccount != null && loggedAccount.type == AccountTypes.Admin)
+            {
+                if (data != null)
+                {
+                    foreach (Account veh in dataAccount)
+                    {
+                        Console.WriteLine("------------------------------");
+                        Console.WriteLine(veh);
+
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto administratora");
+            }
+        }
     }
 }
