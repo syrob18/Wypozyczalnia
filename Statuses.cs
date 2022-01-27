@@ -2,6 +2,6 @@
 {
     enum Statuses
     {
-        AVAILABLE, ORDERED, BROKEN
+        AVAILABLE, ORDERED, BROKEN, NULL, BORROWED
     }
 }

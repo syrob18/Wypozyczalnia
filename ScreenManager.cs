@@ -10,10 +10,9 @@ namespace Wypozyczalnia
 
     static class ScreenManager
     {
-        static string screensDetailsURL = "ScreensPropeties.json";
         static Account loggedAccount = null;
         static List<Vehicle> data = null;
-        static ArrayList dataAccount = null;
+        static List<Account> dataAccount = null;
 
         public static void PrintScreen()
         {
@@ -35,6 +34,11 @@ namespace Wypozyczalnia
         static public void LoadList(List<Vehicle> listVehicle)
         {
             data = listVehicle;
+        }
+
+        static public void LoadAccounts(List<Account> accounts)
+        {
+            dataAccount = accounts;
         }
 
         static void CommandPicker(string commandProvided)
@@ -75,6 +79,27 @@ namespace Wypozyczalnia
                     case Commands.POKAZKONTA:
                         ShowAccounts();
                         break;
+                    case Commands.DODAJADMINA:
+                        AdminPromotion();
+                        break;
+                    case Commands.ZMIENSTATUS:
+                        VehicleStatusChange();
+                        break;
+                    case Commands.USUNPOJAZD:
+                        DeleteVehicle();
+                        break;
+                    case Commands.WYPOZYCZ:
+                        BorrowVehicle();
+                        break;
+                    case Commands.ZWROC:
+                        ReturnVehicle();
+                        break;
+                    case Commands.WIADOMOSC:
+                        SendMessage();
+                        break;
+                    case Commands.ZAREZERWUJ:
+                        OrderVehicle();
+                        break;
                 }
             }
             else
@@ -84,12 +109,7 @@ namespace Wypozyczalnia
             PrintScreen();
         }
 
-        static string accountJSON;
-
-        static void JsonSerialization()
-        {
-
-        }
+        
         static void Login()
         {
             Console.WriteLine("Podaj nazwe");
@@ -97,35 +117,9 @@ namespace Wypozyczalnia
             Console.WriteLine("Podaj haslo");
             string password = Console.ReadLine();
 
-            ArrayList list = new ArrayList();
-            string fileName = "./Accounts.json";
-            string jsonString = "";
-            if (File.Exists(fileName))
-            {
-                jsonString = File.ReadAllText(fileName);
-                if (jsonString != "")
-                {
-                    list = JsonSerializer.Deserialize<ArrayList>(jsonString);
-                   
-                }
-            }
-            else
-            {
-                Console.WriteLine("Brak takiego konta");
-                return;
-            }
-            ArrayList listAccounts = new ArrayList();
-            foreach(JsonElement element in list)
-            {
-               
-                Account account = new Account(element.GetProperty("name").GetString(), element.GetProperty("password").GetString(), (AccountTypes) element.GetProperty("type").GetInt32());
-                listAccounts.Add(account);
-                
-            }
-            dataAccount = listAccounts;
+          
 
-
-            foreach (Account account in listAccounts)
+            foreach (Account account in dataAccount)
             {
                 if(account.name == name)
                 {
@@ -134,6 +128,11 @@ namespace Wypozyczalnia
                         loggedAccount = account;
                         Console.Clear();
                         Console.WriteLine("Zalogowano");
+                        if (loggedAccount.message != "")
+                        {
+                            Console.WriteLine($"Oczekujaca wiadomosc od admina: \n {loggedAccount.message}");
+                            loggedAccount.message = "";
+                        }
                         return;
                     }
                 }
@@ -147,38 +146,22 @@ namespace Wypozyczalnia
             string name = Console.ReadLine();
             Console.WriteLine("Podaj haslo");
             string password = Console.ReadLine();
-            Console.WriteLine("Czy chcesz aby konto bylo adminem? (TAK/NIE)");
-            string isAdmin = Console.ReadLine();
             AccountTypes type = AccountTypes.Standard;
-            if (isAdmin.ToUpper() == "TAK")
+            if (loggedAccount != null && loggedAccount.type == AccountTypes.Admin)
             {
-                type = AccountTypes.Admin;
-            }
+                Console.WriteLine("Czy chcesz aby konto bylo adminem? (TAK/NIE)");
+                string isAdmin = Console.ReadLine();
 
-            ArrayList list = new ArrayList();
-            Account newAccount = new Account(name, password, type);
-            string fileName = "./Accounts.json";
-            string jsonString = "";
-            if (File.Exists(fileName))
-            {
-                jsonString = File.ReadAllText(fileName);
-                if (jsonString != "")
+                
+                if (isAdmin.ToUpper() == "TAK")
                 {
-                    list = JsonSerializer.Deserialize<ArrayList>(jsonString);
+                    type = AccountTypes.Admin;
                 }
             }
-            else
-            {
-                File.Create(fileName).Close();
-
-            }
-            /*string jsonAccount = JsonSerializer.Serialize(newAccount);
-            Console.WriteLine(jsonAccount);*/
-
-
-            list.Add(newAccount);
-            string jsonAccounts = JsonSerializer.Serialize(list);
-            File.WriteAllText(fileName, jsonAccounts);
+          
+            Account newAccount = new Account(name, password, type);
+            dataAccount.Add(newAccount);
+           
         }
 
         static void ShowHelp() {
@@ -275,6 +258,381 @@ namespace Wypozyczalnia
             else
             {
                 Console.WriteLine("Zaloguj sie na konto administratora");
+            }
+        }
+
+        static void AdminPromotion()
+        {
+            if (loggedAccount != null && loggedAccount.type == AccountTypes.Admin)
+            {
+                Console.WriteLine("Podaj nazwe konta");
+                string name = Console.ReadLine();
+                foreach (Account account in dataAccount)
+                {
+                    if(account.name == name)
+                    {
+                        account.type = AccountTypes.Admin;
+                    }
+
+                }
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto administratora");
+            }
+        }
+
+        static Vehicle GetVehViaId(int id)
+        {
+            foreach(Vehicle veh in data)
+            {
+                if(veh.Id == id)
+                {
+                    return veh;
+
+                }
+            }
+            return null;
+        }
+
+        static Account GetAccountViaId(int id)
+        {
+            foreach (Account account in dataAccount)
+            {
+                if (account.id == id)
+                {
+                    return account;
+
+                }
+            }
+            return null;
+        }
+
+        public static string GetAccNameViaId(int id)
+        {
+           return GetAccountViaId(id).name;
+                
+        }
+
+        static void VehicleStatusChange()
+        {
+            if (loggedAccount != null && loggedAccount.type == AccountTypes.Admin)
+            {
+                Console.WriteLine("Podaj numer id pojazdu");
+                string id = Console.ReadLine();
+                bool success = int.TryParse(id, out int successed);
+                
+                if (success)
+                {
+                    Vehicle vehSelected = null;
+                    foreach (Vehicle veh in data)
+                    {
+                        if (veh.Id == successed)
+                        {
+                            vehSelected = veh ;
+                            Console.WriteLine($"Wybrales {vehSelected.Name}");
+                        }
+
+                    }
+                    if(vehSelected == null)
+                    {
+                        Console.WriteLine("Nie ma takiego pojazdu");
+                        return;
+                    }
+                    Console.WriteLine("Dostepne typy statusow: ");
+                    foreach (Statuses types in Enum.GetValues(typeof(Statuses)))
+                    {
+                        if (types != Statuses.NULL)
+                        {
+                            Console.Write(types.ToString() + ", ");
+                            Console.WriteLine("");
+                        }
+                    }
+                    Console.WriteLine("Podaj nowy stan pojazdu:");
+                    string status = Console.ReadLine();
+
+                    bool typeExist = false;
+                    Statuses typeToUse = Statuses.NULL;
+                    foreach (Statuses types in Enum.GetValues(typeof(Statuses)))
+                    {
+                        if (types.ToString().ToUpper() == status.ToString().ToUpper())
+                        {
+                            typeExist = true;
+                            typeToUse = types;
+                            break;
+                        }
+                    }
+                    if (typeExist)
+                    {
+                        Console.WriteLine("Pojazd po zmiaanie statusu:");
+                        Console.WriteLine(typeToUse);
+                        GetVehViaId(successed).Status = typeToUse;
+                        Console.WriteLine(GetVehViaId(successed));
+                        vehSelected.Status = typeToUse;
+                        
+                    }
+                    else
+                    {
+                        Console.WriteLine("Brak takie typu, sprobuj dodac pojazd ponownie");
+                    }
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto administratora");
+            }
+        }
+
+        static void DeleteVehicle()
+        {
+            if (loggedAccount != null && loggedAccount.type == AccountTypes.Admin)
+            {
+                Console.WriteLine("Podaj numer id pojazdu");
+                string id = Console.ReadLine();
+                bool success = int.TryParse(id, out int successed);
+
+                if (success)
+                {
+                    Vehicle vehSelected = null;
+                    foreach (Vehicle veh in data)
+                    {
+                        if (veh.Id == successed)
+                        {
+                            vehSelected = veh;
+                            Console.WriteLine($"Usunales {vehSelected.Name}");
+                            data.Remove(veh);
+                            return;
+                        }
+
+                    }
+                    if (vehSelected == null)
+                    {
+                        Console.WriteLine("Nie ma takiego pojazdu");
+                        return;
+                    }
+                  
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto administratora");
+            }
+        }
+
+        static void BorrowVehicle()
+        {
+            if (loggedAccount != null)
+            {
+                Console.WriteLine("Podaj numer id pojazdu");
+                string id = Console.ReadLine();
+                bool success = int.TryParse(id, out int successed);
+
+                if (success)
+                {
+                    Vehicle vehSelected = null;
+                    foreach (Vehicle veh in data)
+                    {
+                        if (veh.Id == successed)
+                        {
+                            if (veh.Status == Statuses.AVAILABLE)
+                            {
+
+                                Console.WriteLine($"Wypozyczyles {veh.Name}");
+                                GetVehViaId(successed).BorrowedToWho = loggedAccount.id;
+                                GetVehViaId(successed).Status = Statuses.BORROWED;
+                                return;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Ten pojazd jest wypozyczony przez kogos innego");
+                                return;
+                            }
+                        }
+
+                    }
+                    if (vehSelected == null)
+                    {
+                        Console.WriteLine("Nie ma takiego pojazdu");
+                        return;
+                    }
+
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto");
+            }
+        }
+
+        static void ReturnVehicle()
+        {
+            if (loggedAccount != null)
+            {
+                Console.WriteLine("Podaj numer id pojazdu");
+                string id = Console.ReadLine();
+                bool success = int.TryParse(id, out int successed);
+
+                if (success)
+                {
+                    Vehicle vehSelected = null;
+                    foreach (Vehicle veh in data)
+                    {
+                        if (veh.Id == successed)
+                        {
+                            if (veh.Status == Statuses.BORROWED || veh.Status == Statuses.ORDERED)
+                            {
+                                if (veh.BorrowedToWho == loggedAccount.id)
+                                {
+                                    Console.WriteLine($"Oddales {veh.Name}");
+                                    GetVehViaId(successed).BorrowedToWho = -1;
+                                    GetVehViaId(successed).Status = Statuses.AVAILABLE;
+                                    
+                                    return;
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Ten pojazd nie jest wypozyczony przez Ciebie");
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Ten pojazd nie jest wypozyczony przez Ciebie");
+                                return;
+                            }
+                        }
+
+                    }
+                    if (vehSelected == null)
+                    {
+                        Console.WriteLine("Nie ma takiego pojazdu");
+                        return;
+                    }
+
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto");
+            }
+        }
+
+        static void SendMessage()
+        {
+            if (loggedAccount != null && loggedAccount.type == AccountTypes.Admin)
+            {
+                Console.WriteLine("Podaj numer id konta");
+                string id = Console.ReadLine();
+                bool success = int.TryParse(id, out int successed);
+
+                if (success)
+                {
+                    
+                    foreach (Account account in dataAccount)
+                    {
+                        if (account.id == successed)
+                        {
+                            Console.WriteLine("Podaj wiadomosc");
+                            string message = Console.ReadLine();
+                            GetAccountViaId(successed).message = message;
+                            Console.WriteLine($"Wyslales wiadomosc: {message} do uzytkownika {account.name}");
+                            return;
+                        }
+
+                    }
+                    Console.WriteLine("Nie ma takiego konta");
+                }
+                else
+                {
+                    Console.WriteLine("Zaloguj sie na konto administratora");
+                }
+            }
+        }
+        static DateTime FromStringToDate(string dateString)
+        {
+            string[] datesDetails = dateString.Split("-");
+            bool convertionY = int.TryParse(datesDetails[0], out int year);
+            bool convertionM = int.TryParse(datesDetails[1], out int month);
+            bool convertionD = int.TryParse(datesDetails[2], out int day);
+            if (convertionD && convertionM && convertionY)
+            {
+                try
+                {
+                    return new DateTime(year, month, day);
+                }
+                catch (ArgumentOutOfRangeException e)
+                {
+                    Console.WriteLine("Podano zla date, automatycznie ustawiono dzien dzisiejszy");
+                    return DateTime.Today;
+                }
+            }
+            else
+            {
+                Console.WriteLine("Podano zla date, automatycznie ustawiono dzien dzisiejszy");
+                return DateTime.Today;
+            }
+            
+        }
+        static void OrderVehicle()
+        {
+            if (loggedAccount != null)
+            {
+                Console.WriteLine("Podaj numer id pojazdu");
+                string id = Console.ReadLine();
+                bool success = int.TryParse(id, out int successed);
+
+                if (success)
+                {
+                    Vehicle vehSelected = null;
+                    foreach (Vehicle veh in data)
+                    {
+                        if (veh.Id == successed)
+                        {
+                            if (veh.Status == Statuses.AVAILABLE)
+                            {
+
+                                Console.WriteLine($"Chcesz zamowic {veh.Name}");
+                                Console.WriteLine($"Podaj date rozpoczecia wypozyczenia w formacie yyyy-mm-dd np. 2023-12-1");
+                                string dateString = Console.ReadLine();
+                                DateTime dateStart = FromStringToDate(dateString);
+                                Console.WriteLine($"Podaj date zakonczenia wypozyczenia w formacie yyyy-mm-dd np. 2023-12-1");
+                                dateString = Console.ReadLine();
+                                DateTime dateEnd =  FromStringToDate(dateString);
+                                if (dateStart < dateEnd)
+                                {
+                                    GetVehViaId(successed).BorrowedToWho = loggedAccount.id;
+                                    GetVehViaId(successed).Status = Statuses.ORDERED;
+                                    GetVehViaId(successed).OrderedFrom = dateStart;
+                                    GetVehViaId(successed).OrderedTo = dateEnd;
+                                    return;
+                                }
+                                Console.WriteLine("Bledne daty. Sprobuj jeszcze raz");
+                                return;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Ten pojazd jest wypozyczony przez kogos innego");
+                                return;
+                            }
+                        }
+
+                    }
+                    if (vehSelected == null)
+                    {
+                        Console.WriteLine("Nie ma takiego pojazdu");
+                        return;
+                    }
+
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("Zaloguj sie na konto");
             }
         }
     }
